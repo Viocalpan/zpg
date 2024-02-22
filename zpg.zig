@@ -81,6 +81,11 @@ pub const ConnInfo = struct {
             netloc = levelurl[0..i];
             upath = levelurl[i..];
 
+            i = Mem.indexOfAny(u8, upath, ";") orelse 0xffff;
+            if (i < 0xffff) {
+                upath = upath[0..i];
+            }
+
             i = Mem.indexOfAny(u8, upath, "?") orelse 0xffff;
             if (i < 0xffff) {
                 upath = upath[0..i];
@@ -123,6 +128,10 @@ pub const ConnInfo = struct {
 
         while (true) {
             i = Mem.indexOfAny(u8, upath, "/") orelse 0xffff;
+            if (i == 0) {
+                upath = upath[1..];
+                continue;
+            }
             if (i < 0xffff) {
                 upath = upath[0..i];
             } else {
@@ -1064,7 +1073,6 @@ const HmacSha256 = std.crypto.auth.hmac.sha2.HmacSha256;
 const Sha256 = std.crypto.hash.sha2.Sha256;
 const Base64 = std.base64.standard;
 const Rand = std.rand;
-const Time = std.time;
 const Meta = std.meta;
 
 pub const Scram = struct {
@@ -1113,7 +1121,8 @@ pub const Scram = struct {
 
     pub fn init(password: []const u8) Scram {
         var nonce: [24]u8 = undefined;
-        var randomizer = Rand.Xoshiro256.init(@as(u64, @intCast(Time.milliTimestamp())));
+        const addr = @intFromPtr(&nonce);
+        var randomizer = Rand.Xoshiro256.init(addr);
         for (&nonce) |*b| {
             var byte = randomizer.random().intRangeAtMost(u8, 0x21, 0x7e);
             if (byte == 0x2c) {
